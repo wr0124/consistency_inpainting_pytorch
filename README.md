@@ -1,0 +1,2 @@
+# consistency_inpainting_pytorch
+consistency_inpainting implementation in pytorch
