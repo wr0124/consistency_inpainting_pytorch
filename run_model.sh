@@ -1,5 +1,5 @@
-python3 trainv2.py \
---data_dir "/data3/juliew/datasets/anime_faces" \
+python3 train.py \
+--data_dir "/data3/juliew/datasets/butterflies" \
 --image_size 32 32 \
 --batch_size 32 \
 --num_workers 12 \
@@ -10,4 +10,5 @@ python3 trainv2.py \
 --lr_scheduler_start_factor 1e-5 \
 --lr_scheduler_iters 10_000 \
 --num_samples 32 \
---env "consistency_model2" \
+--env "consistency_model3" \
+--train_continue
