@@ -350,6 +350,6 @@ class UNet(nn.Module):
         model.load_state_dict(state_dict)
 
         return model
-summary(UNet(UNetConfig()), input_size=((1, 3, 32, 32), (1,)))
+#summary(UNet(UNetConfig()), input_size=((1, 3, 32, 32), (1,)))
 
 

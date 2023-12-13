@@ -212,7 +212,7 @@ def train_one_epoch(epoch_index, epoch_length, device, config: TrainingConfig):
     last_loss = 0.
     global global_step
     for batch_idx, batch in enumerate(train_loader):
-        print(f"batch_idx is {batch_idx}")
+        #print(f"batch_idx is {batch_idx}")
         if isinstance(batch, list):
             batch = batch[0]
         viz.images( vutils.make_grid( batch, normalize=True, nrow=8 ), win="consistency_batch", 
@@ -259,11 +259,11 @@ for epoch in range(EPOCHS):
     avg_loss = train_one_epoch(epoch, len(train_loader) ,device, training_config)
 
     
-    print(f'trainning loss {avg_loss} at epoch {epoch+1}')
+    #print(f'trainning loss {avg_loss} at epoch {epoch+1}')
     
     
     viz.line( [avg_loss], [ epoch ],win="consis_loss_epoch", opts=dict(title="loss over epoch time"), update="append")
-    if epoch % args.sample_every_n_steps == 0 or epoch == 0 or epoch == EPOCHS:
+    if epoch % args.sample_every_n_steps == 0 or epoch == 0 or epoch == EPOCHS - 1:
         model_path = os.path.join(checkpoint_dir, f"model_epoch_{epoch}")
         model.save_pretrained(model_path)
 
