@@ -331,6 +331,7 @@ class ImprovedConsistencyTraining:
         x: Tensor,
         current_training_step: int,
         total_training_steps: int,
+        mask: Tensor,
         **kwargs: Any,
     ) -> ConsistencyTrainingOutput:
         """Runs one step of the improved consistency training algorithm.
@@ -374,11 +375,11 @@ class ImprovedConsistencyTraining:
         current_sigmas = sigmas[timesteps]
         next_sigmas = sigmas[timesteps + 1]
 
-        zero_tensor = torch.zeros_like(x)
-        random_eraser = T.RandomErasing(
-            p=1, scale=(0.2, 0.4), ratio=(1.3, 3.3), value=1, inplace=True
-        )
-        mask = random_eraser(zero_tensor)
+        # zero_tensor = torch.zeros_like(x)
+        # random_eraser = T.RandomErasing(
+        #     p=1, scale=(0.2, 0.4), ratio=(1.3, 3.3), value=1, inplace=True
+        # )
+        # mask = random_eraser(zero_tensor)
 
         next_noisy_x = x + pad_dims_like(next_sigmas, x) * noise
         next_noisy_x = next_noisy_x * mask + (1 - mask) * x
@@ -392,7 +393,7 @@ class ImprovedConsistencyTraining:
             **kwargs,
         )
         viz.images(
-            vutils.make_grid(next_x.cpu(), normalize=True, nrow=int(next_x.shape[0] )),
+            vutils.make_grid(next_x.cpu(), normalize=True, value_range=(-1,1),nrow=int(next_x.shape[0]/2 )),
             win="consistency_next_x",
             opts=dict(
                 title="predicted_by_next_x_inpaint image",
@@ -415,7 +416,7 @@ class ImprovedConsistencyTraining:
             )
             viz.images(
                 vutils.make_grid(
-                    current_x.cpu(), normalize=True, nrow=int(current_x.shape[0] )
+                    current_x.cpu(), normalize=True,value_range=(-1,1), nrow=int(current_x.shape[0]/2 )
                 ),
                 win="consistency_current_x",
                 opts=dict(

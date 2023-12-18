@@ -96,9 +96,9 @@ class ConsistencySamplingAndEditing:
         x = y if start_from_y else torch.zeros_like(y)
 
         #creat mask
-        mask_fill_one = T.RandomErasing(p=1.0, scale=(0.2, 0.2), ratio=(0.5, 0.5), value =1 )
-        zero_tensor = torch.zeros_like(x)
-        mask = mask_fill_one(zero_tensor)
+        # mask_fill_one = T.RandomErasing(p=1.0, scale=(0.2, 0.2), ratio=(0.5, 0.5), value =1 )
+        # zero_tensor = torch.zeros_like(x)
+        # mask = mask_fill_one(zero_tensor)
         # Sample at the end of the schedule
         y = self.__mask_transform(x, y, mask, transform_fn, inverse_transform_fn)
         # For tasks like interpolation where noise will already be added in advance we
@@ -198,42 +198,42 @@ class ConsistencySamplingAndEditing:
         inverse_transform_fn: Callable[[Tensor], Tensor] = lambda x: x,
     ) -> Tensor:
         return inverse_transform_fn(transform_fn(y) * (1.0 - mask) + x * mask)
-
-#dataset
-@dataclass
-class ImageDataModuleConfig:
-    data_dir: str
-    image_size: Tuple[int, int]
-    batch_size: int
-    num_workers: int
-    pin_memory: bool = True
-    persistent_workers: bool = True
-
-class ImageDataModule:
-    def __init__(self, config: ImageDataModuleConfig) -> None:
-        self.config = config
-        self.dataset = None
-
-    def setup(self) -> None:
-        transform = T.Compose(
-            [
-                T.Resize(self.config.image_size),
-                T.RandomHorizontalFlip(),
-                T.ToTensor(),
-                T.Lambda(lambda x: (x * 2) - 1),
-            ]
-        )
-        self.dataset = ImageFolder(self.config.data_dir, transform=transform)
-
-    def get_dataloader(self, shuffle: bool = True) -> DataLoader:
-        return DataLoader(
-            self.dataset,
-            batch_size=self.config.batch_size,
-            shuffle=shuffle,
-            num_workers=self.config.num_workers,
-            pin_memory=self.config.pin_memory,
-            persistent_workers=self.config.persistent_workers,
-        )
+#
+# #dataset
+# @dataclass
+# class ImageDataModuleConfig:
+#     data_dir: str
+#     image_size: Tuple[int, int]
+#     batch_size: int
+#     num_workers: int
+#     pin_memory: bool = True
+#     persistent_workers: bool = True
+#
+# class ImageDataModule:
+#     def __init__(self, config: ImageDataModuleConfig) -> None:
+#         self.config = config
+#         self.dataset = None
+#
+#     def setup(self) -> None:
+#         transform = T.Compose(
+#             [
+#                 T.Resize(self.config.image_size),
+#                 T.RandomHorizontalFlip(),
+#                 T.ToTensor(),
+#                 T.Lambda(lambda x: (x * 2) - 1),
+#             ]
+#         )
+#         self.dataset = ImageFolder(self.config.data_dir, transform=transform)
+#
+#     def get_dataloader(self, shuffle: bool = True) -> DataLoader:
+#         return DataLoader(
+#             self.dataset,
+#             batch_size=self.config.batch_size,
+#             shuffle=shuffle,
+#             num_workers=self.config.num_workers,
+#             pin_memory=self.config.pin_memory,
+#             persistent_workers=self.config.persistent_workers,
+#         )
 #
 # #usage example
 # config = ImageDataModuleConfig(

@@ -17,6 +17,7 @@ import numpy as np
 import random
 import torch
 import os
+from torchvision.datasets.folder import default_loader
 import glob
 # Decide which device we want to run on
 ngpu = 1
@@ -24,15 +25,52 @@ device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else 
 args = parse_opts()
 viz = Visdom(env=args.env)
 
-# Set seed for reproducibility
+def set_seed(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
 seed_value = 42  
-torch.manual_seed(seed_value)
-if torch.cuda.is_available():
-    torch.cuda.manual_seed_all(seed_value)
-np.random.seed(seed_value)
-random.seed(seed_value)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
+set_seed(seed_value)
+
+def worker_init_fn(worker_id):
+    np.random.seed(np.random.get_state()[1][0] + worker_id)
+
+
+class CustomImageFolder(ImageFolder):
+    def __init__(self, root, transform=None, target_transform=None,
+                 loader=default_loader, is_valid_file=None,
+                 image_folder="img", mask_folder="bbox"):
+        super(CustomImageFolder, self).__init__(
+            root, transform=transform, target_transform=target_transform,
+            loader=loader, is_valid_file=is_valid_file
+        )
+        self.image_folder = image_folder
+        self.mask_folder = mask_folder
+
+    def __getitem__(self, index):
+        file_path, _ = self.samples[index]
+       # print(f"filename is {file_path}")
+        filename = os.path.basename(file_path)
+        image_path = os.path.join(self.root, self.image_folder, filename)
+        mask_path = os.path.join(self.root, self.mask_folder, filename)
+
+        if not os.path.exists(image_path) or not os.path.exists(mask_path):
+            raise FileNotFoundError(f"Image or mask not found for file: {filename}")
+
+        image = self.loader(image_path)
+        mask = self.loader(mask_path)
+
+        if self.transform is not None:
+            image = self.transform(image)
+            mask = self.transform(mask)
+
+        return image, mask
+
 
 # Data module configuration
 @dataclass
@@ -57,7 +95,13 @@ class ImageDataModule:
             T.ToTensor(),
             T.Lambda(lambda x: (x * 2) - 1),
         ])
-        self.dataset = ImageFolder(self.config.data_dir, transform=transform)
+        self.dataset = CustomImageFolder(
+            self.config.data_dir,
+            transform=transform,
+            image_folder=args.data_dir+"/img/",  # Specify the folder for images
+            mask_folder=args.data_dir+"/bbox/" ,    # Specify the folder for masks
+        )
+
 
     def get_dataloader(self, shuffle: bool = True) -> DataLoader:
         return DataLoader(
@@ -140,7 +184,7 @@ training_config = TrainingConfig()
 
 # Function for sampling and logging samples
 @torch.no_grad()
-def __sample_and_log_samples(batch: Union[Tensor, List[Tensor]], config: TrainingConfig, global_step) -> None:
+def __sample_and_log_samples(batch: Union[Tensor, List[Tensor]], masks: Union[Tensor,List[Tensor]],config: TrainingConfig, global_step) -> None:
     if isinstance(batch, list):
         batch = batch[0]
 
@@ -207,15 +251,17 @@ def __log_images(
     )
 
 # Function for training one epoch
-def train_one_epoch(epoch_index, epoch_length, device, config: TrainingConfig):
+def train_one_epoch(epoch_index, epoch_length, device, config: TrainingConfig, train_loader):
     running_loss = 0.
     last_loss = 0.
     global global_step
-    for batch_idx, batch in enumerate(train_loader):
+    for batch_idx, (images, masks) in enumerate(train_loader):
         #print(f"batch_idx is {batch_idx}")
-        if isinstance(batch, list):
-            batch = batch[0]
-        viz.images( vutils.make_grid( batch, normalize=True, nrow=8 ), win="consistency_batch", 
+        binary_masks = (masks != -1 ).float()
+        if isinstance(images, list):
+            images = images[0]
+
+        viz.images( vutils.make_grid( images, normalize=True, nrow=8 ), win="consistency_batch", 
                    opts=dict( title="train_batch image", caption="train_batch image",width=300, height=300,) )
 
         optimizer.zero_grad()
@@ -224,7 +270,7 @@ def train_one_epoch(epoch_index, epoch_length, device, config: TrainingConfig):
 
         global_step = epoch_index * epoch_length + batch_idx
         max_steps = EPOCHS * epoch_length
-        output = consistency_training(model, batch.to(device), global_step, max_steps)
+        output = consistency_training(model, images.to(device), global_step, max_steps, binary_masks.to(device))
         loss = (pseudo_huber_loss(output.predicted, output.target) * output.loss_weights).mean()
         loss.backward()
         global_step += 1
@@ -256,7 +302,7 @@ for epoch in range(EPOCHS):
     model.train(True)
     
 
-    avg_loss = train_one_epoch(epoch, len(train_loader) ,device, training_config)
+    avg_loss = train_one_epoch(epoch, len(train_loader) ,device, training_config, train_loader)
 
     
     #print(f'trainning loss {avg_loss} at epoch {epoch+1}')
@@ -267,8 +313,9 @@ for epoch in range(EPOCHS):
         model_path = os.path.join(checkpoint_dir, f"model_epoch_{epoch}")
         model.save_pretrained(model_path)
 
-        batch, _ = next(iter(train_loader))
-        __sample_and_log_samples(batch.to(device), training_config, global_step)
+        batch, masks = next(iter(train_loader))
+        binary_masks = (masks != -1).float()
+        __sample_and_log_samples(batch.to(device), binary_masks.to(device),training_config, global_step)
     scheduler.step()
 
 
