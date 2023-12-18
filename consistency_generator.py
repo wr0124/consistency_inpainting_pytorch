@@ -392,7 +392,7 @@ class ImprovedConsistencyTraining:
             **kwargs,
         )
         viz.images(
-            vutils.make_grid(next_x.cpu(), normalize=True, nrow=int(next_x.shape[0] / 4)),
+            vutils.make_grid(next_x.cpu(), normalize=True, nrow=int(next_x.shape[0] )),
             win="consistency_next_x",
             opts=dict(
                 title="predicted_by_next_x_inpaint image",
@@ -415,7 +415,7 @@ class ImprovedConsistencyTraining:
             )
             viz.images(
                 vutils.make_grid(
-                    current_x.cpu(), normalize=True, nrow=int(current_x.shape[0] / 4)
+                    current_x.cpu(), normalize=True, nrow=int(current_x.shape[0] )
                 ),
                 win="consistency_current_x",
                 opts=dict(

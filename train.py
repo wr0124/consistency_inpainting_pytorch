@@ -127,7 +127,7 @@ class TrainingConfig:
     betas: Tuple[float, float] = (0.9, 0.995)
     lr_scheduler_start_factor = args.lr_scheduler_start_factor
     lr_scheduler_iters = args.lr_scheduler_iters
-    sample_every_n_steps = args.sample_every_n_steps
+    sample_every_n_epochs = args.sample_every_n_epochs
     num_samples = args.num_samples
     sampling_sigmas: Tuple[Tuple[int, ...], ...] = (
         (80,),
@@ -263,7 +263,7 @@ for epoch in range(EPOCHS):
     
     
     viz.line( [avg_loss], [ epoch ],win="consis_loss_epoch", opts=dict(title="loss over epoch time"), update="append")
-    if epoch % args.sample_every_n_steps == 0 or epoch == 0 or epoch == EPOCHS - 1:
+    if epoch % args.sample_every_n_epochs == 0 or epoch == 0 or epoch == EPOCHS - 1:
         model_path = os.path.join(checkpoint_dir, f"model_epoch_{epoch}")
         model.save_pretrained(model_path)
 

@@ -104,7 +104,7 @@ class ConsistencySamplingAndEditing:
         # For tasks like interpolation where noise will already be added in advance we
         # can skip the noising process
         y = y * (1-mask)
-        viz.images( vutils.make_grid( y, normalize=True, nrow=8 ), win="consistency_masked_input", 
+        viz.images( vutils.make_grid( y, normalize=True ), win="consistency_masked_input", 
                    opts=dict( title="inpainting_sigma1_input image", caption="inpainting_sigma1_input image",width=300, height=300,) )
 
 
@@ -120,7 +120,7 @@ class ConsistencySamplingAndEditing:
 
         viz.images(
             vutils.make_grid(
-                x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 4)
+                x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 2)
             ),
             win="consistency_test3",
             opts=dict(
@@ -144,7 +144,7 @@ class ConsistencySamplingAndEditing:
             x = self.__mask_transform(x, y, mask, transform_fn, inverse_transform_fn)
             viz.images(
                 vutils.make_grid(
-                    x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 4)
+                    x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 2)
                 ),
                 win="consistency_test4",
                 opts=dict(
@@ -162,7 +162,7 @@ class ConsistencySamplingAndEditing:
 
             viz.images(
                 vutils.make_grid(
-                    x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 4)
+                    x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 2)
                 ),
                 win="consistency_test5",
                 opts=dict(
@@ -178,7 +178,7 @@ class ConsistencySamplingAndEditing:
 
             viz.images(
                 vutils.make_grid(
-                    x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 4)
+                    x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 2)
                 ),
                 win="consistency_test6",
                 opts=dict(

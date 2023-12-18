@@ -28,10 +28,10 @@ def parse_opts():
         "--max_steps", type=int, default=4000, help="Maximum number of training steps"
     )
     parser.add_argument(
-        "--sample_every_n_steps",
+        "--sample_every_n_epochs",
         type=int,
         default=100,
-        help="Frequency of sampling during training steps",
+        help="Frequency of sampling during training epoch",
     )
     parser.add_argument(
         "--devices",
