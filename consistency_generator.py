@@ -356,7 +356,6 @@ class ImprovedConsistencyTraining:
         ConsistencyTrainingOutput
             The predicted and target values for computing the loss, sigmas (noise levels) as well as the loss weights.
         """
-
         num_timesteps = improved_timesteps_schedule(
             current_training_step,
             total_training_steps,
@@ -366,6 +365,7 @@ class ImprovedConsistencyTraining:
         sigmas = karras_schedule(
             num_timesteps, self.sigma_min, self.sigma_max, self.rho, x.device
         )
+        viz.text( f"sigmas are {sigmas}", win="sigmas" )
         noise = torch.randn_like(x)
 
         timesteps = lognormal_timestep_distribution(
@@ -393,11 +393,11 @@ class ImprovedConsistencyTraining:
             **kwargs,
         )
         viz.images(
-            vutils.make_grid(next_x.cpu(), normalize=True, value_range=(-1,1),nrow=int(next_x.shape[0]/2 )),
+            vutils.make_grid(next_noisy_x.cpu(), normalize=True, value_range=(-1,1),nrow=int(next_x.shape[0]/2 )),
             win="consistency_next_x",
             opts=dict(
-                title="predicted_by_next_x_inpaint image",
-                caption="predicted_by_next_x_inpaint image",
+                title="next_noisy_x image",
+                caption="next_noisy_x image",
                 width=300,
                 height=300,
             ),
@@ -414,19 +414,19 @@ class ImprovedConsistencyTraining:
                 self.sigma_min,
                 **kwargs,
             )
-            viz.images(
-                vutils.make_grid(
-                    current_x.cpu(), normalize=True,value_range=(-1,1), nrow=int(current_x.shape[0]/2 )
-                ),
-                win="consistency_current_x",
-                opts=dict(
-                    title="predicted_by_current_x image",
-                    caption="predicted_by_current_x image",
-                    width=300,
-                    height=300,
-                ),
-            )
-
+            # viz.images(
+            #     vutils.make_grid(
+            #         current_x.cpu(), normalize=True,value_range=(-1,1), nrow=int(current_x.shape[0]/2 )
+            #     ),
+            #     win="current_noisy_x",
+            #     opts=dict(
+            #         title="current_noisy_x image",
+            #         caption="current_noisy_x image",
+            #         width=300,
+            #         height=300,
+            #     ),
+            # )
+            #
         loss_weights = pad_dims_like(improved_loss_weighting(sigmas)[timesteps], next_x)
 
         return ConsistencyTrainingOutput(

@@ -114,24 +114,10 @@ class ImageDataModule:
             persistent_workers=self.config.persistent_workers,
         )
 
-# Usage example
-config = ImageDataModuleConfig(
-    data_dir=args.data_dir,
-    image_size=args.image_size,
-    batch_size=args.batch_size,
-    num_workers=args.num_workers
-)
-data_module = ImageDataModule(config)
-data_module.setup()
-train_loader = data_module.get_dataloader(shuffle=True)
-print(f"train_loader len is {len(train_loader)}")
-
 # Extract the dataset name from the data_dir
 dataset_name = os.path.basename(args.data_dir)
 checkpoint_dir = os.path.join("checkpoints", dataset_name)
 print(f"checkpoint_dir is {checkpoint_dir}")
-# Create the dataset-specific checkpoint folder if it doesn't exist
-os.makedirs(checkpoint_dir, exist_ok=True)
 
 # Check if train_continue option is provided
 if args.train_continue:
@@ -141,10 +127,12 @@ if args.train_continue:
     if model_paths:
         # Get the latest model path
         latest_model_path = max(model_paths, key=os.path.getctime)
+        latest_model_epochs = os.path.basename(latest_model_path).split("_")[-1]
+        print(f"latest_model_epoch is {latest_model_epochs}")
         print(f"Model loaded from {latest_model_path}")
 
         # Load the latest model
-        model = UNet.from_pretrained(latest_model_path)
+        model = UNet.from_pretrained(latest_model_path).to(device)
     else:
         print(f"No existing models found in {checkpoint_dir}. Train from scratch.")
         # If not continuing, create a new model
@@ -159,15 +147,10 @@ else:
 # Model configuration and summary
 #summary(model, input_size=((1, 3, 32, 32), (1,)))
 
-# Optimizer and scheduler setup
-optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.995))
-scheduler = optim.lr_scheduler.LinearLR(
-    optimizer, start_factor=args.lr_scheduler_start_factor, total_iters=args.lr_scheduler_iters
-)
 
-# Training configuration
+# sampling configuration
 @dataclass
-class TrainingConfig:
+class SamplingConfig:
     lr: float = args.lr
     betas: Tuple[float, float] = (0.9, 0.995)
     lr_scheduler_start_factor = args.lr_scheduler_start_factor
@@ -181,11 +164,12 @@ class TrainingConfig:
     )
 
 # Training configuration instance
-training_config = TrainingConfig()
+Sampling_config = SamplingConfig()
 
 # Function for sampling and logging samples
 @torch.no_grad()
-def __sample_and_log_samples(batch: Union[Tensor, List[Tensor]], masks: Union[Tensor,List[Tensor]],config: TrainingConfig, global_step) -> None:
+def __sample_and_log_samples(batch: Union[Tensor, List[Tensor]], masks: Union[Tensor,List[Tensor]],config: SamplingConfig, latest_model_epoch) -> None:
+
     # if isinstance(batch, list):
     #     batch = batch[0]
     #
@@ -196,7 +180,7 @@ def __sample_and_log_samples(batch: Union[Tensor, List[Tensor]], masks: Union[Te
     __log_images(
         batch[:num_samples].detach(),
         "ground_truth",
-        global_step,
+        latest_model_epoch,
         "ground_truth_window",
         window_size=(200, 200),
     )
@@ -216,7 +200,7 @@ def __sample_and_log_samples(batch: Union[Tensor, List[Tensor]], masks: Union[Te
         __log_images(
             samples,
             f"generated_samples-sigmas={sigmas}",
-            global_step,
+            latest_model_epoch,
             f"generated_samples_window_{sigmas}",
             window_size=(400, 400),
         )
@@ -251,76 +235,20 @@ def __log_images(
         ),
         win=window_name,
     )
-
-# Function for training one epoch
-def train_one_epoch(epoch_index, epoch_length, device, config: TrainingConfig, train_loader):
-    running_loss = 0.
-    last_loss = 0.
-    global global_step
-    train_loader = tqdm(train_loader, desc=f'Epoch {epoch_index + 1}', dynamic_ncols=True)
-    for batch_idx, (images, masks) in enumerate(train_loader):
-        #print(f"batch_idx is {batch_idx}")
-        binary_masks = (masks != -1 ).float()
-        if isinstance(images, list):
-            images = images[0]
-
-        viz.images( vutils.make_grid( images, normalize=True, nrow=8 ), win="consistency_batch", 
-                   opts=dict( title="train_batch image", caption="train_batch image",width=300, height=300,) )
-
-        optimizer.zero_grad()
-
-        consistency_training = ImprovedConsistencyTraining()
-
-        global_step = epoch_index * epoch_length + batch_idx
-        max_steps = EPOCHS * epoch_length
-        output = consistency_training(model, images.to(device), global_step, max_steps, binary_masks.to(device))
-        loss = (pseudo_huber_loss(output.predicted, output.target) * output.loss_weights).mean()
-        loss.backward()
-        global_step += 1
-        optimizer.step()
-        running_loss += loss.item()
-
-        viz.line(
-            [loss.detach().cpu().numpy()],
-            [global_step],
-            win="consis_loss_iteration",
-            opts=dict(title="loss over iteration"),
-            update="append"
-        )
-
-        if batch_idx % len(train_loader) == 0:
-            last_loss = running_loss / len(train_loader)
-            running_loss = 0.
-
-        if batch_idx % 10 == 0:
-            __sample_and_log_samples(batch.to(device), binary_masks.to(device),training_config, global_step)
-    return last_loss
-
-# Main training loop
-
-EPOCHS = int( args.max_steps / len(train_loader) )
-global_step = 0  
-for epoch in range(EPOCHS):
-    print('EPOCH {}:'.format(epoch + 1))
-
-    # Make sure gradient tracking is on, and do a pass over the data
-    model.train(True)
     
 
-    avg_loss = train_one_epoch(epoch, len(train_loader) ,device, training_config, train_loader)
+# Usage example
+config = ImageDataModuleConfig(
+    data_dir=args.data_dir,
+    image_size=args.image_size,
+    batch_size=args.batch_size,
+    num_workers=args.num_workers
+)
+data_module = ImageDataModule(config)
+data_module.setup()
+train_loader = data_module.get_dataloader(shuffle=True)
+print(f"train_loader len is {len(train_loader)}")
 
-    
-    #print(f'trainning loss {avg_loss} at epoch {epoch+1}')
-    
-    
-    viz.line( [avg_loss], [ epoch ],win="consis_loss_epoch", opts=dict(title="loss over epoch time"), update="append")
-    if epoch % args.sample_every_n_epochs == 0 or epoch == 0 or epoch == EPOCHS - 1:
-        model_path = os.path.join(checkpoint_dir, f"model_epoch_{epoch}")
-        model.save_pretrained(model_path)
-
-        batch, masks = next(iter(train_loader))
-        binary_masks = (masks != -1).float()
-        __sample_and_log_samples(batch.to(device), binary_masks.to(device),training_config, global_step)
-    scheduler.step()
-
-
+batch, masks = next(iter(train_loader))
+binary_masks = (masks != -1).float()
+__sample_and_log_samples(batch.to(device), binary_masks.to(device),Sampling_config, latest_model_epochs)

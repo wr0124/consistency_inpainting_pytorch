@@ -41,13 +41,13 @@ class ConsistencySamplingAndEditing:
         model: nn.Module,
         y: Tensor,
         sigmas: Iterable[Union[Tensor, float]],
-        mask: Optional[Tensor] = None,
+        mask: Optional[Tensor] = Tensor,
         transform_fn: Callable[[Tensor], Tensor] = lambda x: x,
         inverse_transform_fn: Callable[[Tensor], Tensor] = lambda x: x,
         start_from_y: bool = True,
         add_initial_noise: bool = True,
         clip_denoised: bool = False,
-        verbose: bool = False,
+        verbose: bool = True,
         **kwargs: Any,
     ) -> Tensor:
         """Runs the sampling/zero-shot editing loop.
@@ -142,52 +142,52 @@ class ConsistencySamplingAndEditing:
             ) * torch.randn_like(x)
 
             x = self.__mask_transform(x, y, mask, transform_fn, inverse_transform_fn)
-            viz.images(
-                vutils.make_grid(
-                    x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 2)
-                ),
-                win="consistency_test4",
-                opts=dict(
-                    title="estimation x_t image",
-                    caption="estimation x_t image",
-                    width=500,
-                    height=500,
-                ),
-            )
-
+            # viz.images(
+            #     vutils.make_grid(
+            #         x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 2)
+            #     ),
+            #     win="consistency_test4",
+            #     opts=dict(
+            #         title="estimation x_t image",
+            #         caption="estimation x_t image",
+            #         width=500,
+            #         height=500,
+            #     ),
+            # )
+            #
 
             x = model_forward_wrapper(
                 model, x, sigma, self.sigma_data, self.sigma_min, **kwargs
             )
 
-            viz.images(
-                vutils.make_grid(
-                    x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 2)
-                ),
-                win="consistency_test5",
-                opts=dict(
-                    title="function x_t image",
-                    caption="function x_t image",
-                    width=500,
-                    height=500,
-                ),
-            )
+            # viz.images(
+            #     vutils.make_grid(
+            #         x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 2)
+            #     ),
+            #     win="consistency_test5",
+            #     opts=dict(
+            #         title="function x_t image",
+            #         caption="function x_t image",
+            #         width=500,
+            #         height=500,
+            #     ),
+            # )
             if clip_denoised:
                 x = x.clamp(min=-1.0, max=1.0)
             x = self.__mask_transform(x, y, mask, transform_fn, inverse_transform_fn)
-
-            viz.images(
-                vutils.make_grid(
-                    x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 2)
-                ),
-                win="consistency_test6",
-                opts=dict(
-                    title="final x_t image",
-                    caption="final x_t image",
-                    width=500,
-                    height=500,
-                ),
-            )
+            #
+            # viz.images(
+            #     vutils.make_grid(
+            #         x.to(dtype=torch.float32), normalize=True, nrow=int(x.shape[0] / 2)
+            #     ),
+            #     win="consistency_test6",
+            #     opts=dict(
+            #         title="final x_t image",
+            #         caption="final x_t image",
+            #         width=500,
+            #         height=500,
+            #     ),
+            # )
         return x
     def __mask_transform(
         self,
